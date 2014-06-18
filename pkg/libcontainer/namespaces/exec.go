@@ -3,6 +3,8 @@
 package namespaces
 
 import (
+	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"syscall"
@@ -78,6 +80,7 @@ func Exec(container *libcontainer.Container, term Terminal, rootfs, dataPath str
 		command.Wait()
 		return -1, err
 	}
+	defer TeardownNetworking(container, command.Process.Pid, syncPipe)
 
 	// Sync with child
 	syncPipe.Close()
@@ -86,11 +89,13 @@ func Exec(container *libcontainer.Container, term Terminal, rootfs, dataPath str
 		startCallback()
 	}
 
+	log.Printf("before execing container, pid is %d", os.Getpid())
 	if err := command.Wait(); err != nil {
 		if _, ok := err.(*exec.ExitError); !ok {
 			return -1, err
 		}
 	}
+	log.Printf("done execing container, pid is %d", os.Getpid())
 	return command.ProcessState.Sys().(syscall.WaitStatus).ExitStatus(), nil
 }
 
@@ -159,7 +164,57 @@ func InitializeNetworking(container *libcontainer.Container, nspid int, pipe *Sy
 			return err
 		}
 	}
+	for _, net_iface := range container.NetworkInterfaces {
+		log.Printf("setting up %+v", net_iface)
+		if err := network.InterfaceDown(net_iface.HostIfaceName); err != nil {
+			log.Printf("interface down failed for %s", net_iface.HostIfaceName)
+		}
+		if err := network.SetInterfaceInNamespacePid(net_iface.HostIfaceName, nspid); err != nil {
+			log.Printf("failed to set interface into namespace pid of %d, named %s", nspid, net_iface.HostIfaceName)
+			log.Printf("error was %+v", err)
+		}
+		if err := network.InterfaceUp(net_iface.HostIfaceName); err != nil {
+			log.Printf("interface up failed for %s", net_iface.HostIfaceName)
+		}
+	}
 	return pipe.SendToChild(context)
+}
+
+func TeardownNetworking(container *libcontainer.Container, nspid int, pipe *SyncPipe) {
+	original, err := os.OpenFile("/proc/self/net/ns", os.O_RDONLY, 0)
+	if err != nil {
+		log.Printf("unable to open self proc %+v", err)
+	} else {
+		defer func() {
+			if err := system.Setns(original.Fd(), 0); err != nil {
+				log.Printf("unable to set ns to self proc %+v", err)
+			}
+		}()
+	}
+
+	running, err := os.OpenFile(fmt.Sprintf("/proc/%d/net/ns", nspid), os.O_RDONLY, 0)
+	if err != nil {
+		log.Printf("unable to open %d proc %+v", nspid, err)
+		//return
+	}
+	if err := system.Setns(running.Fd(), 0); err != nil {
+		log.Printf("unable to set ns to pid proc %+v", err)
+		//return
+	}
+	log.Printf("namespace set to pid")
+	for _, net_iface := range container.NetworkInterfaces {
+		log.Printf("tearing down %+v", net_iface)
+		if err := network.InterfaceDown(net_iface.HostIfaceName); err != nil {
+			log.Printf("interface down failed for %s", net_iface.HostIfaceName)
+		}
+		if err := network.SetInterfaceInNamespacePid(net_iface.HostIfaceName, 1); err != nil {
+			log.Printf("failed to set interface into namespace pid of %d, named %s", nspid, net_iface.HostIfaceName)
+			log.Printf("unable to set interface namespace pid %+v", err)
+		}
+		if err := network.InterfaceUp(net_iface.HostIfaceName); err != nil {
+			log.Printf("interface up failed for %s", net_iface.HostIfaceName)
+		}
+	}
 }
 
 // GetNamespaceFlags parses the container's Namespaces options to set the correct

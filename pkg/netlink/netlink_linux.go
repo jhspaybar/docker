@@ -5,6 +5,7 @@ package netlink
 import (
 	"encoding/binary"
 	"fmt"
+	"log"
 	"math/rand"
 	"net"
 	"sync/atomic"
@@ -584,16 +585,18 @@ func NetworkSetMaster(iface, master *net.Interface) error {
 }
 
 func NetworkSetNsPid(iface *net.Interface, nspid int) error {
+	fmt.Printf("in networksetnspid")
+	log.Printf("in networksetnspid")
 	s, err := getNetlinkSocket()
 	if err != nil {
 		return err
 	}
 	defer s.Close()
 
-	wb := newNetlinkRequest(syscall.RTM_SETLINK, syscall.NLM_F_ACK)
+	wb := newNetlinkRequest(syscall.RTM_NEWLINK, syscall.NLM_F_ACK)
 
 	msg := newIfInfomsg(syscall.AF_UNSPEC)
-	msg.Type = syscall.RTM_SETLINK
+	msg.Type = syscall.RTM_NEWLINK
 	msg.Flags = syscall.NLM_F_REQUEST
 	msg.Index = int32(iface.Index)
 	msg.Change = DEFAULT_CHANGE
@@ -611,6 +614,8 @@ func NetworkSetNsPid(iface *net.Interface, nspid int) error {
 	if err := s.Send(wb); err != nil {
 		return err
 	}
+	fmt.Printf("before handleack")
+	log.Printf("before handleack")
 
 	return s.HandleAck(wb.Seq)
 }

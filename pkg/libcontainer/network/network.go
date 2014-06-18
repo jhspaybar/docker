@@ -2,6 +2,7 @@ package network
 
 import (
 	"github.com/dotcloud/docker/pkg/netlink"
+	"log"
 	"net"
 )
 
@@ -34,8 +35,10 @@ func CreateVethPair(name1, name2 string) error {
 }
 
 func SetInterfaceInNamespacePid(name string, nsPid int) error {
+	log.Printf("setting interface my name %s, %d", name, nsPid)
 	iface, err := net.InterfaceByName(name)
 	if err != nil {
+		log.Printf("error getting interfacebyname %+v", err)
 		return err
 	}
 	return netlink.NetworkSetNsPid(iface, nsPid)

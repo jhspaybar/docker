@@ -24,6 +24,16 @@
       "mtu": 1500
     }
   ],
+  "network_interfaces": [
+    {
+      "type": "phys",
+      "ipv4": ["1.2.3.4"],
+      "ipv6": [""],
+      "hwaddr": "",
+      "host_iface_name": "wlan0",
+      "container_iface_name": "eth0"
+    }
+  ]
   "routes": [
     {
       "gateway": "172.17.42.1",

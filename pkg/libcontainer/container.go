@@ -47,6 +47,9 @@ type Container struct {
 	// Networks specifies the container's network setup to be created
 	Networks []*Network `json:"networks,omitempty"`
 
+	// Network interfaces mounted into the container
+	NetworkInterfaces []*NetworkInterface `json:"network_interfaces,omitempty"`
+
 	// Routes can be specified to create entries in the route table as the container is started
 	Routes []*Route `json:"routes,omitempty"`
 
@@ -89,6 +92,15 @@ type Network struct {
 	// Mtu sets the mtu value for the interface and will be mirrored on both the host and
 	// container's interfaces if a pair is created, specifically in the case of type veth
 	Mtu int `json:"mtu,omitempty"`
+}
+
+type NetworkInterface struct {
+	Type               string   `json:"type,omitempty"`
+	Ipv4               []string `json:"ipv4,omitempty"`
+	Ipv6               []string `json:"ipv6,omitempty"`
+	Hwaddr             string   `json:"hwaddr,omitempty"`
+	HostIfaceName      string   `json:"host_iface_name,omitempty"`
+	ContainerIfaceName string   `json:"container_iface_name,omitempty"`
 }
 
 // Routes can be specified to create entries in the route table as the container is started

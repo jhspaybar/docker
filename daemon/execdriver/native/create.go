@@ -61,6 +61,17 @@ func (d *driver) createContainer(c *execdriver.Command) (*libcontainer.Container
 }
 
 func (d *driver) createNetwork(container *libcontainer.Container, c *execdriver.Command) error {
+	container.NetworkInterfaces = []*libcontainer.NetworkInterface{
+		{
+			Type:               "phys",
+			Ipv4:               []string{"1.2.3.4"},
+			Ipv6:               []string{"::/64"},
+			Hwaddr:             "",
+			HostIfaceName:      "wlan0",
+			ContainerIfaceName: "eth0",
+		},
+	}
+
 	if c.Network.HostNetworking {
 		container.Namespaces["NEWNET"] = false
 		return nil
